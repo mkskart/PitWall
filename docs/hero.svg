@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" font-family="ui-monospace, monospace">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="trackGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#15152a"/>
+      <stop offset="100%" stop-color="#080810"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+
+  <rect width="1200" height="675" fill="#080810"/>
+  <rect width="1200" height="675" fill="url(#grid)"/>
+
+  <!-- top nav -->
+  <rect x="0" y="0" width="1200" height="48" fill="#0f0f1a" stroke="#ffffff1a"/>
+  <text x="24" y="30" font-size="16" font-weight="700"><tspan fill="#FF8000">PIT</tspan><tspan fill="#ffffff">WALL</tspan></text>
+  <text x="470" y="30" font-size="13" fill="#ffffff">Dashboard</text>
+  <text x="575" y="30" font-size="13" fill="#8a8a99">Replay</text>
+  <text x="655" y="30" font-size="13" fill="#8a8a99">Standings</text>
+  <text x="755" y="30" font-size="13" fill="#8a8a99">Compare</text>
+  <rect x="466" y="40" width="70" height="2" fill="#FF8000"/>
+  <rect x="1040" y="14" width="140" height="22" rx="2" fill="#E8002D14" stroke="#E8002D66"/>
+  <circle cx="1056" cy="25" r="4" fill="#E8002D"/>
+  <text x="1068" y="29" font-size="11" fill="#E8002D">LIVE · SAKHIR</text>
+
+  <!-- left: timing tower -->
+  <rect x="16" y="64" width="244" height="430" rx="2" fill="#0f0f1a" stroke="#ffffff1a"/>
+  <text x="28" y="86" font-size="10" fill="#6b6b7b" letter-spacing="2">LIVE TIMING</text>
+  <g font-size="12">
+    <!-- rows -->
+    <g>
+      <rect x="16" y="98" width="4" height="22" fill="#3671C6"/><text x="30" y="113" fill="#fff">1</text><text x="52" y="113" fill="#3671C6">VER</text><text x="100" y="113" fill="#6b6b7b">LEADER</text><text x="180" y="113" fill="#cfcfe0">1:31.447</text><text x="240" y="113" fill="#FF3333">S</text>
+    </g>
+    <g>
+      <rect x="16" y="122" width="4" height="22" fill="#E8002D"/><text x="30" y="137" fill="#fff">2</text><text x="52" y="137" fill="#E8002D">LEC</text><text x="100" y="137" fill="#6b6b7b">+2.3</text><text x="180" y="137" fill="#cfcfe0">1:31.882</text><text x="240" y="137" fill="#FFD700">M</text>
+    </g>
+    <g>
+      <rect x="16" y="146" width="4" height="22" fill="#FF8000"/><text x="30" y="161" fill="#fff">3</text><text x="52" y="161" fill="#FF8000">NOR</text><text x="100" y="161" fill="#6b6b7b">+5.1</text><text x="180" y="161" fill="#cfcfe0">1:32.014</text><text x="240" y="161" fill="#FF3333">S</text>
+    </g>
+    <g>
+      <rect x="16" y="170" width="4" height="22" fill="#27F4D2"/><text x="30" y="185" fill="#fff">4</text><text x="52" y="185" fill="#27F4D2">HAM</text><text x="100" y="185" fill="#6b6b7b">+8.7</text><text x="180" y="185" fill="#cfcfe0">1:32.330</text><text x="240" y="185" fill="#CCCCCC">H</text>
+    </g>
+    <g>
+      <rect x="16" y="194" width="4" height="22" fill="#229971"/><text x="30" y="209" fill="#fff">5</text><text x="52" y="209" fill="#229971">ALO</text><text x="100" y="209" fill="#6b6b7b">+12.4</text><text x="180" y="209" fill="#cfcfe0">1:32.551</text><text x="240" y="209" fill="#FFD700">M</text>
+    </g>
+    <g opacity="0.85">
+      <rect x="16" y="218" width="4" height="22" fill="#64C4FF"/><text x="30" y="233" fill="#fff">6</text><text x="52" y="233" fill="#64C4FF">ALB</text><text x="100" y="233" fill="#6b6b7b">+18.9</text><text x="180" y="233" fill="#cfcfe0">1:32.880</text><text x="240" y="233" fill="#FF3333">S</text>
+    </g>
+    <g opacity="0.7">
+      <rect x="16" y="242" width="4" height="22" fill="#6692FF"/><text x="30" y="257" fill="#fff">7</text><text x="52" y="257" fill="#6692FF">TSU</text><text x="100" y="257" fill="#6b6b7b">+22.1</text><text x="180" y="257" fill="#cfcfe0">1:33.102</text><text x="240" y="257" fill="#FFD700">M</text>
+    </g>
+    <g opacity="0.55">
+      <rect x="16" y="266" width="4" height="22" fill="#52E252"/><text x="30" y="281" fill="#fff">8</text><text x="52" y="281" fill="#52E252">BOT</text><text x="100" y="281" fill="#6b6b7b">+26.7</text><text x="180" y="281" fill="#cfcfe0">1:33.440</text><text x="240" y="281" fill="#CCCCCC">H</text>
+    </g>
+  </g>
+
+  <!-- center: track map -->
+  <rect x="268" y="64" width="624" height="430" rx="2" fill="url(#trackGlow)" stroke="#ffffff1a"/>
+  <text x="280" y="86" font-size="10" fill="#6b6b7b" letter-spacing="2">TRACK MAP</text>
+  <!-- stylized track loop -->
+  <path d="M420 420 C 360 360 380 300 460 290 C 540 280 560 230 520 190 C 480 150 540 120 620 130 C 720 142 760 200 720 250 C 690 288 730 320 700 370 C 672 416 600 440 540 430 C 490 422 460 452 420 420 Z"
+        fill="none" stroke="#8a8aa0" stroke-width="3"/>
+  <!-- DRS zone -->
+  <path d="M460 290 C 540 280 560 230 520 190" fill="none" stroke="#39B54A" stroke-width="5" opacity="0.8"/>
+  <!-- cars with glow -->
+  <g>
+    <circle cx="700" cy="370" r="14" fill="#3671C6" opacity="0.3" filter="url(#blur)"/>
+    <circle cx="700" cy="370" r="6" fill="#3671C6"/>
+    <circle cx="620" cy="130" r="14" fill="#E8002D" opacity="0.3" filter="url(#blur)"/>
+    <circle cx="620" cy="130" r="6" fill="#E8002D"/>
+    <circle cx="460" cy="290" r="14" fill="#FF8000" opacity="0.3" filter="url(#blur)"/>
+    <circle cx="460" cy="290" r="6" fill="#FF8000"/>
+    <circle cx="540" cy="430" r="12" fill="#27F4D2" opacity="0.3" filter="url(#blur)"/>
+    <circle cx="540" cy="430" r="6" fill="#27F4D2"/>
+  </g>
+
+  <!-- right: driver detail -->
+  <rect x="900" y="64" width="284" height="430" rx="2" fill="#0f0f1a" stroke="#ffffff1a"/>
+  <rect x="900" y="64" width="4" height="64" fill="#3671C6"/>
+  <text x="918" y="96" font-size="18" font-weight="700" fill="#3671C6">Max Verstappen</text>
+  <text x="918" y="114" font-size="11" fill="#6b6b7b">Red Bull Racing</text>
+  <text x="1150" y="110" font-size="34" font-weight="700" fill="#3671C6" text-anchor="end">1</text>
+
+  <text x="918" y="158" font-size="10" fill="#6b6b7b" letter-spacing="2">LAST LAP</text>
+  <text x="918" y="184" font-size="24" fill="#fff">1:31.447</text>
+  <text x="1166" y="158" font-size="10" fill="#6b6b7b" letter-spacing="2" text-anchor="end">VS BEST</text>
+  <text x="1166" y="180" font-size="16" fill="#27F4D2" text-anchor="end">-0.214</text>
+
+  <!-- sparkline -->
+  <polyline points="918,250 960,240 1000,256 1040,232 1080,246 1120,228 1160,238" fill="none" stroke="#3671C6" stroke-width="1.5"/>
+
+  <!-- sector chips -->
+  <rect x="918" y="280" width="78" height="26" rx="2" fill="#9B59D014" stroke="#9B59D040"/><text x="930" y="297" font-size="11" fill="#9B59D0">S1 28.44</text>
+  <rect x="1003" y="280" width="78" height="26" rx="2" fill="#27F4D214" stroke="#27F4D240"/><text x="1015" y="297" font-size="11" fill="#27F4D2">S2 34.71</text>
+  <rect x="1088" y="280" width="78" height="26" rx="2" fill="#FFD60014" stroke="#FFD60040"/><text x="1100" y="297" font-size="11" fill="#FFD600">S3 28.29</text>
+
+  <!-- tire bar -->
+  <circle cx="932" cy="340" r="13" fill="none" stroke="#FF3333" stroke-width="2"/><text x="932" y="345" font-size="11" font-weight="700" fill="#FF3333" text-anchor="middle">S</text>
+  <rect x="956" y="334" width="210" height="6" rx="2" fill="#ffffff0a"/><rect x="956" y="334" width="150" height="6" rx="2" fill="#FF3333"/>
+
+  <!-- DRS pill -->
+  <rect x="918" y="372" width="248" height="28" rx="2" fill="#27F4D214" stroke="#27F4D2"/><text x="1042" y="390" font-size="12" fill="#27F4D2" text-anchor="middle">DRS OPEN</text>
+
+  <!-- bottom: pit strategy -->
+  <rect x="16" y="502" width="1168" height="157" rx="2" fill="#0f0f1a" stroke="#ffffff1a"/>
+  <text x="28" y="524" font-size="10" fill="#6b6b7b" letter-spacing="2">PIT STRATEGY</text>
+  <text x="1166" y="524" font-size="10" fill="#6b6b7b" text-anchor="end">LAP 34 / 57</text>
+  <g>
+    <text x="28" y="548" font-size="10" fill="#3671C6">VER</text><rect x="70" y="540" width="380" height="10" fill="#FF3333" opacity="0.85"/><rect x="450" y="540" width="450" height="10" fill="#CCCCCC" opacity="0.85"/>
+    <text x="28" y="568" font-size="10" fill="#E8002D">LEC</text><rect x="70" y="560" width="300" height="10" fill="#FFD700" opacity="0.85"/><rect x="370" y="560" width="530" height="10" fill="#FF3333" opacity="0.85"/>
+    <text x="28" y="588" font-size="10" fill="#FF8000">NOR</text><rect x="70" y="580" width="420" height="10" fill="#FF3333" opacity="0.85"/><rect x="490" y="580" width="410" height="10" fill="#CCCCCC" opacity="0.85"/>
+    <text x="28" y="608" font-size="10" fill="#27F4D2">HAM</text><rect x="70" y="600" width="520" height="10" fill="#CCCCCC" opacity="0.85"/><rect x="590" y="600" width="310" height="10" fill="#FFD700" opacity="0.85"/>
+    <text x="28" y="628" font-size="10" fill="#229971">ALO</text><rect x="70" y="620" width="350" height="10" fill="#FFD700" opacity="0.85"/><rect x="420" y="620" width="480" height="10" fill="#CCCCCC" opacity="0.85"/>
+  </g>
+  <!-- current lap line -->
+  <rect x="565" y="534" width="1.5" height="118" fill="#ffffff" opacity="0.6"/>
+</svg>
