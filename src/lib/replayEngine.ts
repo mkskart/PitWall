@@ -16,7 +16,7 @@
 
 import type { CarState } from './types';
 import { binarySearchLE, clamp, lerp } from './utils';
-import { SimEngine } from './simEngine';
+import { SimEngine, pointAt } from './simEngine';
 import type { CircuitPath } from './trackPaths/_spline';
 
 export interface TimedSample {
@@ -33,9 +33,17 @@ export interface ReplayTimeline {
 
 export class ReplayEngine {
   private timeline: ReplayTimeline;
+  private circuit: CircuitPath | null;
 
-  constructor(timeline: ReplayTimeline) {
+  /**
+   * When a circuit is provided, interpolated x/z are derived from the lap
+   * `progress` along the track geometry instead of straight-line lerp between
+   * samples — straight-line interpolation visibly cuts corners through
+   * hairpins at coarse sample intervals.
+   */
+  constructor(timeline: ReplayTimeline, circuit?: CircuitPath) {
     this.timeline = timeline;
+    this.circuit = circuit ?? null;
   }
 
   get duration() {
@@ -66,7 +74,7 @@ export class ReplayEngine {
         const b = samples[idx + 1];
         const span = b.t - a.t || 1;
         const f = clamp((t - a.t) / span, 0, 1);
-        state = interpolate(a.state, b.state, f);
+        state = interpolate(a.state, b.state, f, this.circuit);
       }
       cars.push(state);
       maxLap = Math.max(maxLap, state.lapNumber);
@@ -80,57 +88,26 @@ export class ReplayEngine {
   }
 }
 
-/** Linear interpolation of two car states. Position is re-derived by ranking. */
-function interpolate(a: CarState, b: CarState, f: number): CarState {
+/** Interpolation of two car states. Position is re-derived by ranking. */
+function interpolate(a: CarState, b: CarState, f: number, circuit: CircuitPath | null): CarState {
   // Guard against wrap-around in progress (e.g. 0.98 → 0.02 across the line).
   let bp = b.progress;
   if (Math.abs(bp - a.progress) > 0.5) {
     bp = bp < a.progress ? bp + 1 : bp - 1;
   }
   const progress = ((lerp(a.progress, bp, f) % 1) + 1) % 1;
+  // Follow the racing line when we know the circuit; otherwise straight lerp.
+  const [px, pz] = circuit ? pointAt(circuit, progress) : [lerp(a.x, b.x, f), lerp(a.z, b.z, f)];
   return {
     ...b,
-    x: lerp(a.x, b.x, f),
-    z: lerp(a.z, b.z, f),
+    x: px,
+    z: pz,
     progress,
     lapNumber: f < 1 ? a.lapNumber : b.lapNumber,
     speed: lerp(a.speed, b.speed, f),
     throttle: lerp(a.throttle, b.throttle, f),
     brake: lerp(a.brake, b.brake, f),
   };
-}
-
-/**
- * Build a replay timeline by running the deterministic SimEngine and recording
- * a snapshot every `sampleDt` seconds of race time. Used when the live API has
- * no data for the requested historical round.
- */
-export function buildSimTimeline(circuit: CircuitPath, seed: number, sampleDt = 2): ReplayTimeline {
-  const engine = new SimEngine(circuit, seed);
-  const byDriver: Record<number, TimedSample[]> = {};
-  const stepMs = sampleDt * 1000;
-  // Run roughly the full race; cap iterations as a safety net.
-  let elapsed = 0;
-  const maxElapsed = 60 * 110; // ~110 min ceiling
-  let lastLap = 0;
-  let stableLapTicks = 0;
-
-  while (elapsed < maxElapsed) {
-    const frame = engine.tick(stepMs);
-    elapsed = frame.elapsed;
-    for (const c of frame.cars) {
-      (byDriver[c.driverNumber] ??= []).push({ t: elapsed, state: { ...c } });
-    }
-    // Stop once the leader has been at the final lap for a while.
-    if (frame.lap >= engine.totalLaps) {
-      if (frame.lap === lastLap) stableLapTicks++;
-      else stableLapTicks = 0;
-      lastLap = frame.lap;
-      if (stableLapTicks > 30) break;
-    }
-  }
-
-  return { byDriver, duration: elapsed, totalLaps: engine.totalLaps };
 }
 
 /**

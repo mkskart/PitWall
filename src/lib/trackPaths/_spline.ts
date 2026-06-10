@@ -66,9 +66,42 @@ export function normalizePoints(points: Vec2[]): Vec2[] {
   return points.map(([x, y]) => [((x - cx) / span) * 2, ((y - cy) / span) * 2]);
 }
 
-/** Build a finished, normalized, densely-sampled closed track from anchors. */
+/**
+ * Re-space a closed polyline to `n` points at uniform arc-length intervals.
+ * Catmull-Rom output clusters points near dense anchor runs (tight corners),
+ * which would make equal index steps cover unequal real distance — cars would
+ * visibly surge and crawl. After this pass, fractional lap progress maps
+ * linearly onto distance along the track.
+ */
+export function respaceUniform(points: Vec2[], n = 360): Vec2[] {
+  const m = points.length;
+  if (m < 3) return points.slice();
+  // Cumulative arc length around the closed loop.
+  const cum: number[] = [0];
+  for (let i = 1; i <= m; i++) {
+    const [ax, ay] = points[i - 1];
+    const [bx, by] = points[i % m];
+    cum.push(cum[i - 1] + Math.hypot(bx - ax, by - ay));
+  }
+  const total = cum[m];
+  const out: Vec2[] = [];
+  let seg = 0;
+  for (let k = 0; k < n; k++) {
+    const target = (k / n) * total;
+    while (seg < m - 1 && cum[seg + 1] < target) seg++;
+    const span = cum[seg + 1] - cum[seg] || 1;
+    const f = (target - cum[seg]) / span;
+    const [ax, ay] = points[seg];
+    const [bx, by] = points[(seg + 1) % m];
+    out.push([ax + (bx - ax) * f, ay + (by - ay) * f]);
+  }
+  return out;
+}
+
+/** Build a finished, normalized, uniformly-spaced closed track from anchors. */
 export function buildTrack(anchors: Vec2[], samplesPerSegment = 16): Vec2[] {
-  return normalizePoints(resampleClosed(normalizePoints(anchors), samplesPerSegment));
+  const dense = resampleClosed(normalizePoints(anchors), samplesPerSegment);
+  return normalizePoints(respaceUniform(dense, 360));
 }
 
 export interface CircuitPath {
