@@ -8,9 +8,17 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'PitWall — F1 Telemetry & Analytics',
+  title: {
+    default: 'PitWall — F1 Telemetry & Analytics',
+    template: '%s — PitWall',
+  },
   description:
-    'Live F1 timing, 3D track maps, interpolated race replay, and head-to-head driver telemetry. Built on OpenF1 with an Ergast fallback.',
+    'Live F1 timing, 3D track maps, interpolated race replay, and head-to-head driver telemetry. Built on OpenF1 with an Ergast-compatible fallback.',
+  openGraph: {
+    title: 'PitWall — F1 Telemetry & Analytics',
+    description: 'Live timing, 3D track map, race replay, and head-to-head telemetry comparison.',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,7 @@ import { ReplayControls } from '@/components/replay/ReplayControls';
 import { DriverDetailPanel } from '@/components/dashboard/DriverDetailPanel';
 import { TimingTower } from '@/components/dashboard/TimingTower';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 const TrackScene = dynamic(() => import('@/components/track/TrackScene').then((m) => m.TrackScene), {
   ssr: false,
@@ -41,9 +42,9 @@ export default function ReplayPage({ params }: { params: { year: string; round: 
   }, []);
 
   return (
-    <div className="h-[calc(100vh-3rem)] flex flex-col gap-2 p-2">
+    <div className="lg:h-[calc(100vh-3rem)] flex flex-col gap-2 p-2">
       {/* race selector */}
-      <div className="flex items-center gap-3 px-1 shrink-0">
+      <div className="flex flex-wrap items-center gap-3 px-1 shrink-0">
         <h1 className="font-sans text-sm font-semibold text-white">Race Replay</h1>
         <Select
           value={String(year)}
@@ -70,16 +71,22 @@ export default function ReplayPage({ params }: { params: { year: string; round: 
       </div>
 
       {/* main view */}
-      <div className="flex-1 grid gap-2 min-h-0" style={{ gridTemplateColumns: '22% 52% 26%' }}>
-        <div className="min-h-0">
-          <TimingTower />
+      <div className="flex-1 grid gap-2 min-h-0 grid-cols-1 lg:[grid-template-columns:22%_1fr_26%]">
+        <div className="min-h-0 h-[40vh] lg:h-auto order-2 lg:order-1">
+          <ErrorBoundary label="Timing Tower">
+            <TimingTower />
+          </ErrorBoundary>
         </div>
-        <div className="min-h-0 panel overflow-hidden relative">
-          {ctrl.ready ? <TrackScene /> : <Skeleton className="w-full h-full" />}
+        <div className="min-h-0 h-[40vh] lg:h-auto panel overflow-hidden relative order-1 lg:order-2">
+          <ErrorBoundary label="Track Map">
+            {ctrl.ready ? <TrackScene /> : <Skeleton className="w-full h-full" />}
+          </ErrorBoundary>
           <div className="absolute top-2 left-2 label pointer-events-none">Track Map</div>
         </div>
-        <div className="min-h-0">
-          <DriverDetailPanel />
+        <div className="min-h-0 order-3">
+          <ErrorBoundary label="Driver Detail">
+            <DriverDetailPanel />
+          </ErrorBoundary>
         </div>
       </div>
 
