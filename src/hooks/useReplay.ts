@@ -24,6 +24,8 @@ export interface ReplayController {
   pause: () => void;
   setSpeed: (s: PlaybackSpeed) => void;
   seek: (t: number) => void;
+  seekBy: (deltaSeconds: number) => void;
+  jumpLap: (direction: 1 | -1) => void;
 }
 
 /**
@@ -108,7 +110,7 @@ export function useReplay(year: number, round: number): ReplayController {
       if (cancelled) return;
 
       const bundle = buildSimReplay(circuit, round * 7 + 3);
-      engineRef.current = new ReplayEngine(bundle.timeline);
+      engineRef.current = new ReplayEngine(bundle.timeline, circuit);
 
       if (!drivers.length) drivers = simDrivers();
 
@@ -140,10 +142,13 @@ export function useReplay(year: number, round: number): ReplayController {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, round]);
 
-  // Animation loop.
+  // Animation loop. The 3D scene reads the store imperatively at full rate;
+  // React-facing `elapsed`/`lap` state is throttled to ~12Hz so the playback
+  // UI doesn't re-render the page tree 60 times a second.
   useEffect(() => {
     if (!isPlaying || !ready) return;
     lastTsRef.current = null;
+    let lastUiElapsed = -Infinity;
 
     const tick = (ts: number) => {
       const engine = engineRef.current;
@@ -160,8 +165,11 @@ export function useReplay(year: number, round: number): ReplayController {
 
       const frame = engine.stateAt(next);
       ingestFrame(frame);
-      setElapsed(next);
-      setLap(frame.lap);
+      if (next - lastUiElapsed > 0.08 || next >= engine.duration) {
+        lastUiElapsed = next;
+        setElapsed(next);
+        setLap(frame.lap);
+      }
 
       if (next >= engine.duration) {
         setPlaying(false);
@@ -190,6 +198,20 @@ export function useReplay(year: number, round: number): ReplayController {
     [ingestFrame],
   );
 
+  /** Seek relative to the current position (keyboard arrows). */
+  const seekBy = useCallback((deltaSeconds: number) => seek(elapsedRef.current + deltaSeconds), [seek]);
+
+  /** Jump forward/back one full lap ([ and ] keys). */
+  const jumpLap = useCallback(
+    (direction: 1 | -1) => {
+      const engine = engineRef.current;
+      if (!engine || engine.totalLaps <= 0) return;
+      const lapDuration = engine.duration / engine.totalLaps;
+      seek(elapsedRef.current + direction * lapDuration);
+    },
+    [seek],
+  );
+
   const toggle = useCallback(() => setPlaying((p) => !p), []);
   const play = useCallback(() => setPlaying(true), []);
   const pause = useCallback(() => setPlaying(false), []);
@@ -209,5 +231,7 @@ export function useReplay(year: number, round: number): ReplayController {
     pause,
     setSpeed,
     seek,
+    seekBy,
+    jumpLap,
   };
 }

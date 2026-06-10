@@ -2,14 +2,23 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { DriverPicker, type PickerSelection } from '@/components/compare/DriverPicker';
-import { LapTimeChart } from '@/components/compare/LapTimeChart';
-import { TelemetryOverlay } from '@/components/compare/TelemetryOverlay';
-import { SectorHeatmap } from '@/components/compare/SectorHeatmap';
-import { PitCompare } from '@/components/compare/PitCompare';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
+// Each tab is code-split so the Recharts bundle loads only when a comparison
+// is actually rendered; the initial page is just the pickers.
+const tabFallback = () => <Skeleton style={{ height: 340 }} />;
+const DeltaTrace = dynamic(() => import('@/components/compare/DeltaTrace').then((m) => m.DeltaTrace), { loading: tabFallback });
+const LapTimeChart = dynamic(() => import('@/components/compare/LapTimeChart').then((m) => m.LapTimeChart), { loading: tabFallback });
+const TelemetryOverlay = dynamic(() => import('@/components/compare/TelemetryOverlay').then((m) => m.TelemetryOverlay), { loading: tabFallback });
+const SectorHeatmap = dynamic(() => import('@/components/compare/SectorHeatmap').then((m) => m.SectorHeatmap), { loading: tabFallback });
+const PitCompare = dynamic(() => import('@/components/compare/PitCompare').then((m) => m.PitCompare), { loading: tabFallback });
+
 const TABS = [
+  { id: 'delta', label: 'Race Delta' },
   { id: 'laps', label: 'Lap Times' },
   { id: 'telemetry', label: 'Telemetry' },
   { id: 'sectors', label: 'Sectors' },
@@ -23,7 +32,7 @@ const SPRING = { type: 'spring', stiffness: 120, damping: 20 } as const;
 export default function ComparePage() {
   const [driverA, setDriverA] = useState<PickerSelection | null>(null);
   const [driverB, setDriverB] = useState<PickerSelection | null>(null);
-  const [tab, setTab] = useState<TabId>('laps');
+  const [tab, setTab] = useState<TabId>('delta');
 
   const bothPicked = driverA != null && driverB != null;
 
@@ -74,12 +83,13 @@ export default function ComparePage() {
           <span className="text-muted text-sm font-sans">Select two drivers to compare.</span>
         </div>
       ) : (
-        <div>
+        <ErrorBoundary label="Comparison">
+          {tab === 'delta' && <DeltaTrace driverA={driverA} driverB={driverB} />}
           {tab === 'laps' && <LapTimeChart driverA={driverA} driverB={driverB} />}
           {tab === 'telemetry' && <TelemetryOverlay driverA={driverA} driverB={driverB} />}
           {tab === 'sectors' && <SectorHeatmap driverA={driverA} driverB={driverB} />}
           {tab === 'pit' && <PitCompare driverA={driverA} driverB={driverB} />}
-        </div>
+        </ErrorBoundary>
       )}
     </div>
   );
