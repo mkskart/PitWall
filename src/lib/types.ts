@@ -1,12 +1,11 @@
 /**
  * All shared TypeScript interfaces for PitWall.
  *
- * Two families of types live here:
- *  - Raw API shapes (prefixed OpenF1* / Ergast*) that mirror the upstream JSON.
- *  - Normalized domain types the UI actually consumes, decoupled from source.
- *
- * The normalization step happens in lib/openf1.ts and lib/ergast.ts so that the
- * rest of the app never needs to know which provider supplied the data.
+ * These are the normalized domain types the UI consumes, decoupled from any
+ * data source. Raw upstream shapes are defined as Zod schemas in lib/schemas.ts
+ * (validated at the boundary); normalization happens in lib/openf1.ts and
+ * lib/ergast.ts so the rest of the app never knows which provider supplied
+ * the data.
  */
 
 import type { TeamName } from './teamColors';
@@ -39,21 +38,6 @@ export const COMPOUND_SHORT: Record<Compound, string> = {
 // Sessions
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface OpenF1Session {
-  session_key: number;
-  meeting_key: number;
-  session_name: string;
-  session_type: string;
-  date_start: string;
-  date_end: string;
-  year: number;
-  circuit_short_name: string;
-  circuit_key: number;
-  country_name: string;
-  location: string;
-  gmt_offset: string;
-}
-
 export interface SessionInfo {
   sessionKey: number | null;
   meetingKey: number | null;
@@ -77,20 +61,6 @@ export interface SessionInfo {
 // Drivers
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface OpenF1Driver {
-  session_key: number;
-  driver_number: number;
-  broadcast_name: string;
-  full_name: string;
-  name_acronym: string;
-  team_name: string;
-  team_colour: string;
-  first_name: string;
-  last_name: string;
-  headshot_url: string;
-  country_code: string;
-}
-
 export interface Driver {
   driverNumber: number;
   code: string; // 3-letter acronym, e.g. VER
@@ -108,22 +78,6 @@ export interface Driver {
 // Position / location
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface OpenF1Position {
-  session_key: number;
-  driver_number: number;
-  date: string;
-  position: number;
-}
-
-export interface OpenF1Location {
-  session_key: number;
-  driver_number: number;
-  date: string;
-  x: number;
-  y: number;
-  z: number;
-}
-
 /** Live order entry pushed to the timing tower over SSE. */
 export interface PositionUpdate {
   driverNumber: number;
@@ -140,22 +94,6 @@ export interface PositionFrame {
 // Laps
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface OpenF1Lap {
-  session_key: number;
-  driver_number: number;
-  lap_number: number;
-  date_start: string | null;
-  lap_duration: number | null;
-  duration_sector_1: number | null;
-  duration_sector_2: number | null;
-  duration_sector_3: number | null;
-  st_speed: number | null; // speed trap
-  is_pit_out_lap: boolean;
-  segments_sector_1: number[];
-  segments_sector_2: number[];
-  segments_sector_3: number[];
-}
-
 export interface Lap {
   driverNumber: number;
   lapNumber: number;
@@ -171,18 +109,6 @@ export interface Lap {
 // ─────────────────────────────────────────────────────────────────────────────
 // Telemetry (car_data)
 // ─────────────────────────────────────────────────────────────────────────────
-
-export interface OpenF1CarData {
-  session_key: number;
-  driver_number: number;
-  date: string;
-  speed: number;
-  throttle: number;
-  brake: number;
-  n_gear: number;
-  rpm: number;
-  drs: number;
-}
 
 export interface TelemetrySample {
   date: string;
@@ -214,14 +140,6 @@ export function isDrsOpen(drs: number): boolean {
 // Pit stops
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface OpenF1Pit {
-  session_key: number;
-  driver_number: number;
-  date: string;
-  pit_duration: number | null;
-  lap_number: number;
-}
-
 export interface PitStop {
   driverNumber: number;
   lapNumber: number;
@@ -232,16 +150,6 @@ export interface PitStop {
 // ─────────────────────────────────────────────────────────────────────────────
 // Stints
 // ─────────────────────────────────────────────────────────────────────────────
-
-export interface OpenF1Stint {
-  session_key: number;
-  driver_number: number;
-  stint_number: number;
-  lap_start: number;
-  lap_end: number;
-  compound: string;
-  tyre_age_at_start: number;
-}
 
 export interface Stint {
   driverNumber: number;
