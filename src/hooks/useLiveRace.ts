@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRaceStore } from '@/store/raceStore';
 import { SimEngine, simDrivers } from '@/lib/simEngine';
 import { resolveCircuit, DEFAULT_CIRCUIT } from '@/lib/trackPaths';
@@ -14,13 +14,20 @@ interface SSEFrameRow {
   z: number | null;
 }
 
+/** No frame OR heartbeat for this long → treat the stream as silently dead. */
+const STALL_MS = 45_000;
+const MAX_RECONNECT_DELAY = 30_000;
+
 /**
  * Drives the dashboard race state. Strategy:
  *
  *  1. Probe /api/sessions for the latest session and pick its circuit.
  *  2. If a session is genuinely LIVE, open the SSE feed and stream real order.
- *  3. Otherwise (off-season / API empty — the common case) run the deterministic
- *     SimEngine and flag the store as 'sim' so the header shows SIMULATION MODE.
+ *     The connection auto-reconnects with exponential backoff and a watchdog
+ *     detects silent stalls (no frame/heartbeat for 45s).
+ *  3. Otherwise (off-season / API empty — the common case) run the
+ *     deterministic SimEngine and flag the store as 'sim' so the header shows
+ *     SIMULATION MODE.
  *
  * Either way the store ends up with a consistent set of drivers, car states,
  * running order, clock, and strategy data for the rest of the dashboard.
@@ -33,10 +40,23 @@ export function useLiveRace() {
   const ingestFrame = useRaceStore((s) => s.ingestFrame);
   const setStrategy = useRaceStore((s) => s.setStrategy);
 
-  const cleanupRef = useRef<(() => void) | null>(null);
-
   useEffect(() => {
     let cancelled = false;
+    let es: EventSource | null = null;
+    let simTimer: ReturnType<typeof setInterval> | null = null;
+    let watchdog: ReturnType<typeof setInterval> | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempt = 0;
+    let lastMessageAt = 0;
+
+    const teardownStream = () => {
+      es?.close();
+      es = null;
+      if (watchdog) clearInterval(watchdog);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      watchdog = null;
+      reconnectTimer = null;
+    };
 
     async function boot() {
       let latest: SessionInfo | null = null;
@@ -55,52 +75,73 @@ export function useLiveRace() {
       setCircuit(circuit);
       setSession(latest);
 
-      const live = latest?.isLive && latest.sessionKey != null;
-
-      if (live && latest?.sessionKey != null) {
-        const ok = startSSE(latest.sessionKey);
-        if (ok) return;
+      if (latest?.isLive && latest.sessionKey != null) {
+        connect(latest.sessionKey);
+      } else {
+        startSim(circuit, latest);
       }
-
-      startSim(circuit, latest);
     }
 
     function startSim(circuit = DEFAULT_CIRCUIT, session: SessionInfo | null = null) {
-      if (cancelled) return;
+      if (cancelled || simTimer) return;
+      teardownStream();
       setMode('sim');
       setDrivers(simDrivers());
       const engine = new SimEngine(circuit, (session?.round ?? 1) * 7 + 3);
       const tickMs = 200;
-      const timer = setInterval(() => {
+      let lastStrategyLap = -1;
+      simTimer = setInterval(() => {
         const frame = engine.tick(tickMs);
         ingestFrame({ ...frame, totalLaps: engine.totalLaps });
-        const snap = engine.snapshot();
-        setStrategy(snap);
+        // Strategy arrays only change when someone completes a lap — pushing
+        // them every tick would re-render the whole timeline at 5Hz.
+        if (frame.lap !== lastStrategyLap) {
+          lastStrategyLap = frame.lap;
+          setStrategy(engine.snapshot());
+        }
       }, tickMs);
-      cleanupRef.current = () => clearInterval(timer);
     }
 
-    function startSSE(sessionKey: number): boolean {
-      try {
-        // Load real driver identities + strategy alongside the live order feed.
-        void Promise.all([
-          fetch(`/api/drivers?session_key=${sessionKey}`).then((r) => r.json()),
-          fetch(`/api/stints?session_key=${sessionKey}`).then((r) => r.json()),
-          fetch(`/api/pit?session_key=${sessionKey}`).then((r) => r.json()),
-          fetch(`/api/laps?session_key=${sessionKey}`).then((r) => r.json()),
-        ]).then(([d, st, p, lp]) => {
+    function loadSessionData(sessionKey: number) {
+      void Promise.all([
+        fetch(`/api/drivers?session_key=${sessionKey}`).then((r) => r.json()),
+        fetch(`/api/stints?session_key=${sessionKey}`).then((r) => r.json()),
+        fetch(`/api/pit?session_key=${sessionKey}`).then((r) => r.json()),
+        fetch(`/api/laps?session_key=${sessionKey}`).then((r) => r.json()),
+      ])
+        .then(([d, st, p, lp]) => {
           if (cancelled) return;
           if (d?.drivers?.length) setDrivers(d.drivers);
           setStrategy({ stints: st?.stints ?? [], pits: p?.pits ?? [], laps: lp?.laps ?? [] });
+        })
+        .catch(() => {
+          /* identity/strategy panels degrade; the position stream still works */
+        });
+    }
+
+    function connect(sessionKey: number) {
+      if (cancelled) return;
+      teardownStream();
+      setMode('live');
+      loadSessionData(sessionKey);
+
+      // Running normalization bounds for raw live coordinates (persist across
+      // reconnects so the map doesn't re-scale mid-session).
+      const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+
+      const open = () => {
+        if (cancelled) return;
+        es = new EventSource(`/api/position?session_key=${sessionKey}&interval_ms=500`);
+        lastMessageAt = Date.now();
+
+        es.addEventListener('hb', () => {
+          lastMessageAt = Date.now();
         });
 
-        setMode('live');
-        const es = new EventSource(`/api/position?session_key=${sessionKey}&interval_ms=500`);
-        const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
-
         es.addEventListener('frame', (ev) => {
+          lastMessageAt = Date.now();
+          reconnectAttempt = 0; // healthy again
           const data = JSON.parse((ev as MessageEvent).data) as { order: SSEFrameRow[] };
-          // Maintain running normalization bounds for the raw live coordinates.
           for (const r of data.order) {
             if (r.x != null) {
               bounds.minX = Math.min(bounds.minX, r.x);
@@ -147,30 +188,44 @@ export function useLiveRace() {
         });
 
         es.addEventListener('empty', () => {
-          es.close();
-          if (!cancelled) startSim(useRaceStore.getState().circuit, useRaceStore.getState().session);
+          // No OpenF1 data for this session — simulate instead; do not retry.
+          teardownStream();
+          startSim(useRaceStore.getState().circuit, useRaceStore.getState().session);
         });
 
         es.onerror = () => {
-          // Network hiccup — fall back to the sim rather than freezing.
-          es.close();
-          if (!cancelled && useRaceStore.getState().mode === 'live') {
-            startSim(useRaceStore.getState().circuit, useRaceStore.getState().session);
-          }
+          // Connection lost — EventSource's built-in retry is replaced with
+          // controlled exponential backoff so a dead server isn't hammered.
+          es?.close();
+          es = null;
+          if (cancelled) return;
+          const delay = Math.min(MAX_RECONNECT_DELAY, 1000 * 2 ** reconnectAttempt);
+          reconnectAttempt++;
+          reconnectTimer = setTimeout(open, delay);
         };
+      };
 
-        cleanupRef.current = () => es.close();
-        return true;
-      } catch {
-        return false;
-      }
+      open();
+
+      // Watchdog: heartbeats arrive every 15s; total silence for 45s means the
+      // connection is zombie — force a reconnect cycle.
+      watchdog = setInterval(() => {
+        if (cancelled || !es) return;
+        if (Date.now() - lastMessageAt > STALL_MS) {
+          es.close();
+          es = null;
+          const delay = Math.min(MAX_RECONNECT_DELAY, 1000 * 2 ** reconnectAttempt);
+          reconnectAttempt++;
+          reconnectTimer = setTimeout(open, delay);
+        }
+      }, 10_000);
     }
 
     boot();
     return () => {
       cancelled = true;
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      teardownStream();
+      if (simTimer) clearInterval(simTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
