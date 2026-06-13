@@ -2,45 +2,43 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import type { CircuitPath } from '@/lib/trackPaths';
-import { worldPos } from './trackScale';
+import type { CircuitPath, Vec2 } from '@/lib/trackPaths';
+import { ROAD_HALF, buildRibbonGeometry } from './trackScale';
 
 /**
- * Renders DRS zones as green strips laid over the track surface. Each zone is a
- * [startFrac, endFrac] range along the lap; we slice the matching span of the
- * circuit polyline and draw a thick green line just above the track.
+ * Renders DRS zones as translucent green ribbons laid over the asphalt. Each
+ * zone is a [startFrac, endFrac] range along the lap; we slice the matching
+ * span of the circuit polyline and build a ribbon just above the track surface.
  */
 export function DRSZones({ circuit }: { circuit: CircuitPath }) {
-  const segments = useMemo(() => buildZoneSegments(circuit), [circuit]);
+  const geometries = useMemo(() => {
+    return buildZoneSegments(circuit).map((pts) => buildRibbonGeometry(pts, ROAD_HALF * 0.92, 0.04, false));
+  }, [circuit]);
+
   return (
     <group>
-      {segments.map((pts, i) => (
-        <DRSStrip key={i} points={pts} />
+      {geometries.map((geom, i) => (
+        <mesh key={i} geometry={geom}>
+          <meshBasicMaterial
+            color="#27F4D2"
+            transparent
+            opacity={0.16}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
       ))}
     </group>
   );
 }
 
-function DRSStrip({ points }: { points: [number, number, number][] }) {
-  const geom = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setFromPoints(points.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
-    return g;
-  }, [points]);
-  return (
-    <line>
-      <primitive object={geom} attach="geometry" />
-      <lineBasicMaterial color="#39B54A" transparent opacity={0.85} linewidth={2} />
-    </line>
-  );
-}
-
-function buildZoneSegments(circuit: CircuitPath): [number, number, number][][] {
+function buildZoneSegments(circuit: CircuitPath): Vec2[][] {
   const pts = circuit.points;
   const n = pts.length;
-  const segs: [number, number, number][][] = [];
+  const segs: Vec2[][] = [];
   for (const [start, end] of circuit.drsZones) {
-    const seg: [number, number, number][] = [];
+    const seg: Vec2[] = [];
     const startI = Math.floor(start * n);
     const endI = Math.floor(end * n);
     const indices: number[] = [];
@@ -50,10 +48,7 @@ function buildZoneSegments(circuit: CircuitPath): [number, number, number][][] {
       for (let i = startI; i < n; i++) indices.push(i);
       for (let i = 0; i <= endI; i++) indices.push(i);
     }
-    for (const i of indices) {
-      const [wx, , wz] = worldPos(pts[i][0], pts[i][1]);
-      seg.push([wx, 0.04, wz]);
-    }
+    for (const i of indices) seg.push(pts[i]);
     if (seg.length > 1) segs.push(seg);
   }
   return segs;

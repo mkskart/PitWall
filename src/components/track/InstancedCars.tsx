@@ -6,18 +6,21 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { useRaceStore } from '@/store/raceStore';
 import type { Driver } from '@/lib/types';
-import { worldPos, CAR_RADIUS } from './trackScale';
+import { worldPos, makeCarGeometry, CAR_LEN, CAR_RADIUS } from './trackScale';
 
-const TRAIL_LENGTH = 8;
+const TRAIL_LENGTH = 7;
 /** Min movement (normalized track units) before a new trail sample is taken. */
 const TRAIL_MIN_STEP = 0.012;
+/** Lie a flat disc (glow/trail) down on the ground plane. */
+const FLAT = -Math.PI / 2;
 
 const tmpObj = new THREE.Object3D();
 const tmpColor = new THREE.Color();
 
 /**
- * All 20 cars + glows + motion trails in exactly THREE draw calls via
- * instanced meshes (bodies, glow halos, trail segments). Positions are
+ * All 20 cars + glow halos + motion trails in three instanced draw calls. Car
+ * bodies are top-down silhouettes that yaw to face their direction of travel;
+ * glows and trails are flat additive discs on the asphalt. Everything is
  * mutated directly in the render loop from the store — never via React state —
  * and each car eases toward its latest sample to hide network/tick jitter.
  *
@@ -32,9 +35,11 @@ export function InstancedCars({ drivers }: { drivers: Driver[] }) {
   const selectDriver = useRaceStore((s) => s.selectDriver);
 
   const n = drivers.length;
+  const carGeometry = useMemo(() => makeCarGeometry(), []);
 
-  // Per-car smoothed position + trail ring buffer (plain refs, no React state).
+  // Per-car smoothed position, heading, and trail ring buffer (plain refs).
   const smoothed = useRef<Map<number, THREE.Vector3>>(new Map());
+  const headings = useRef<Map<number, number>>(new Map());
   const trailHistory = useRef<Map<number, [number, number][]>>(new Map());
 
   const colors = useMemo(() => drivers.map((d) => new THREE.Color(d.color)), [drivers]);
@@ -60,7 +65,7 @@ export function InstancedCars({ drivers }: { drivers: Driver[] }) {
     if (!b || !g || !tr) return;
 
     const ease = Math.min(1, delta * 12);
-    const pulse = 1.6 + Math.sin(state.clock.elapsedTime * 5) * 0.25;
+    const pulse = 1.5 + Math.sin(state.clock.elapsedTime * 5) * 0.25;
 
     for (let i = 0; i < n; i++) {
       const num = drivers[i].driverNumber;
@@ -68,29 +73,41 @@ export function InstancedCars({ drivers }: { drivers: Driver[] }) {
 
       let pos = smoothed.current.get(num);
       if (!pos) {
-        pos = new THREE.Vector3(0, CAR_RADIUS, 0);
+        pos = new THREE.Vector3(0, 0, 0);
         smoothed.current.set(num, pos);
       }
+      let heading = headings.current.get(num) ?? 0;
       if (car) {
         const [wx, , wz] = worldPos(car.x, car.z);
-        pos.x += (wx - pos.x) * ease;
-        pos.y = CAR_RADIUS;
-        pos.z += (wz - pos.z) * ease;
+        const dx = wx - pos.x;
+        const dz = wz - pos.z;
+        // Update yaw only on real movement so idle cars keep their last facing.
+        if (Math.hypot(dx, dz) > 1e-4) {
+          heading = Math.atan2(-dz, dx);
+          headings.current.set(num, heading);
+        }
+        pos.x += dx * ease;
+        pos.z += dz * ease;
+        pos.y = 0;
       }
 
-      // body
-      tmpObj.position.copy(pos);
-      tmpObj.scale.setScalar(car ? 1 : 0);
+      // body — yawed silhouette, lifted just above the asphalt
+      tmpObj.position.set(pos.x, 0.06, pos.z);
+      tmpObj.rotation.set(0, heading, 0);
+      tmpObj.scale.setScalar(car ? (selected === num ? 1.25 : 1) : 0);
       tmpObj.updateMatrix();
       b.setMatrixAt(i, tmpObj.matrix);
 
-      // glow halo (pulses when selected)
-      tmpObj.scale.setScalar(car ? (selected === num ? pulse : 1.3) : 0);
+      // glow halo — flat disc under the car
+      tmpObj.rotation.set(FLAT, 0, 0);
+      const glowR = car ? (selected === num ? CAR_LEN * pulse : CAR_LEN * 0.9) : 0;
+      tmpObj.position.set(pos.x, 0.02, pos.z);
+      tmpObj.scale.setScalar(glowR);
       tmpObj.updateMatrix();
       g.setMatrixAt(i, tmpObj.matrix);
 
       // trail ring buffer — sample only after real movement so the trail spans
-      // meaningful distance instead of the last 8 animation frames.
+      // meaningful distance instead of the last few animation frames.
       let hist = trailHistory.current.get(num);
       if (!hist) {
         hist = [];
@@ -110,13 +127,14 @@ export function InstancedCars({ drivers }: { drivers: Driver[] }) {
           tmpObj.scale.setScalar(0);
         } else {
           const [wx, , wz] = worldPos(sample[0], sample[1]);
-          tmpObj.position.set(wx, 0.02, wz);
-          tmpObj.scale.setScalar(Math.max(0.05, (0.85 - s * 0.07) * CAR_RADIUS * 1.4));
+          tmpObj.position.set(wx, 0.018, wz);
+          tmpObj.rotation.set(FLAT, 0, 0);
+          tmpObj.scale.setScalar(Math.max(0.04, (0.6 - s * 0.07) * CAR_LEN));
         }
         tmpObj.updateMatrix();
         tr.setMatrixAt(idx, tmpObj.matrix);
         // fade via color: additive blending makes darker == fainter
-        const fade = sample ? 0.8 * (1 - s / TRAIL_LENGTH) : 0;
+        const fade = sample ? 0.55 * (1 - s / TRAIL_LENGTH) : 0;
         tmpColor.copy(colors[i]).multiplyScalar(fade);
         tr.setColorAt(idx, tmpColor);
       }
@@ -142,27 +160,26 @@ export function InstancedCars({ drivers }: { drivers: Driver[] }) {
 
   return (
     <group>
-      {/* glow halos — soft additive */}
+      {/* glow halos — soft additive discs */}
       <instancedMesh ref={glows} args={[undefined, undefined, n]} frustumCulled={false}>
-        <sphereGeometry args={[CAR_RADIUS, 12, 12]} />
-        <meshBasicMaterial transparent opacity={0.28} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+        <circleGeometry args={[1, 24]} />
+        <meshBasicMaterial transparent opacity={0.22} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </instancedMesh>
-      {/* car bodies — clickable */}
+      {/* fading trails */}
+      <instancedMesh ref={trails} args={[undefined, undefined, n * TRAIL_LENGTH]} frustumCulled={false}>
+        <circleGeometry args={[1, 12]} />
+        <meshBasicMaterial transparent opacity={0.8} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </instancedMesh>
+      {/* car bodies — clickable silhouettes */}
       <instancedMesh
         ref={bodies}
-        args={[undefined, undefined, n]}
+        args={[carGeometry, undefined, n]}
         frustumCulled={false}
         onClick={onClick}
         onPointerOver={() => (document.body.style.cursor = 'pointer')}
         onPointerOut={() => (document.body.style.cursor = 'default')}
       >
-        <sphereGeometry args={[CAR_RADIUS, 16, 16]} />
-        <meshBasicMaterial toneMapped={false} />
-      </instancedMesh>
-      {/* fading trails */}
-      <instancedMesh ref={trails} args={[undefined, undefined, n * TRAIL_LENGTH]} frustumCulled={false}>
-        <sphereGeometry args={[1, 6, 6]} />
-        <meshBasicMaterial transparent opacity={0.8} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+        <meshBasicMaterial side={THREE.DoubleSide} toneMapped={false} />
       </instancedMesh>
       <SelectedLabel drivers={drivers} smoothed={smoothed} />
     </group>

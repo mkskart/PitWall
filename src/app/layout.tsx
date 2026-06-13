@@ -6,6 +6,7 @@ import { Providers } from './providers';
 import { TopNav } from '@/components/nav/TopNav';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
   title: {
     default: 'PitWall — F1 Telemetry & Analytics',
     template: '%s — PitWall',
