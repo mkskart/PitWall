@@ -87,8 +87,10 @@ export function normalizeSession(s: RawSession, now = Date.now()): SessionInfo {
 /** Find the latest session globally (used to detect a live race). */
 export async function getLatestSession(): Promise<SessionInfo | null> {
   // OpenF1 supports the literal `session_key=latest`.
+  // Short timeout + no retries: this is a fast "is anyone home?" probe.
+  // If OpenF1 is unreachable the dashboard falls back to simulation immediately.
   const url = `${env.OPENF1_BASE_URL}/sessions?session_key=latest`;
-  const data = await fetchJsonSafe<unknown>(url, { revalidate: 30 });
+  const data = await fetchJsonSafe<unknown>(url, { revalidate: 30, timeoutMs: 3000, retries: 0 });
   const raw = parseRows(openF1SessionSchema, data, 'openf1/sessions:latest');
   if (!raw.length) return null;
   return normalizeSession(raw[raw.length - 1]);

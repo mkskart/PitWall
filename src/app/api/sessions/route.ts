@@ -18,8 +18,13 @@ export async function GET(req: NextRequest) {
   const roundParam = searchParams.get('round');
 
   // No year → "what's the latest session?" probe for the live dashboard.
+  // Race against a 5s wall-clock limit so a slow/blocked OpenF1 can't hold
+  // up the dashboard boot (it falls back to simulation immediately).
   if (!yearParam) {
-    const latest = await getLatestSession();
+    const latest = await Promise.race([
+      getLatestSession(),
+      new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+    ]);
     return NextResponse.json({ latest, sessions: latest ? [latest] : [] });
   }
 
