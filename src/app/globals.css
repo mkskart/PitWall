@@ -60,7 +60,7 @@ body {
   }
 
   .mono {
-    font-family: var(--font-jetbrains), ui-monospace, monospace;
+    font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
   }
 
   .label {

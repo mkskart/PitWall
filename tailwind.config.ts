@@ -21,8 +21,8 @@ const config: Config = {
         'delta-slow': '#FFD600',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-jetbrains)', 'ui-monospace', 'monospace'],
+        sans: ['"Inter Variable"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'monospace'],
       },
       keyframes: {
         'pulse-live': {

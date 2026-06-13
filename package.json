@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@react-three/drei": "^9.108.3",
     "@react-three/fiber": "^8.16.8",
     "@tanstack/react-query": "^5.51.11",
